@@ -1,0 +1,55 @@
+# configs/train_config.yaml
+# Hyper-parameters tuned for a single A100-80GB or two A10G-24GB GPUs.
+# Adjust per_device_train_batch_size + gradient_accumulation_steps so that
+# effective_batch_size = 32.
+
+# ── Model ──────────────────────────────────────────────
+model_name_or_path: "mistralai/Mistral-7B-Instruct-v0.3"
+use_flash_attention_2: true
+
+# ── Data ───────────────────────────────────────────────
+dataset_path: "data/legal_instruct.jsonl"
+max_seq_length: 2048
+val_split_ratio: 0.05
+
+# ── LoRA ───────────────────────────────────────────────
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+# ── Training (HF TrainingArguments) ────────────────────
+output_dir: "./outputs/mistral7b-legal-lora"
+run_name: "mistral7b-legal-lora-v1"
+num_train_epochs: 3
+per_device_train_batch_size: 4
+per_device_eval_batch_size: 4
+gradient_accumulation_steps: 8      # effective batch = 4×8 = 32
+gradient_checkpointing: true
+optim: "paged_adamw_32bit"          # memory-efficient AdamW
+learning_rate: 2.0e-4
+weight_decay: 0.001
+lr_scheduler_type: "cosine"
+warmup_ratio: 0.03
+fp16: false
+bf16: true
+max_grad_norm: 0.3
+logging_steps: 10
+evaluation_strategy: "steps"
+eval_steps: 100
+save_strategy: "steps"
+save_steps: 100
+save_total_limit: 3
+load_best_model_at_end: true
+metric_for_best_model: "eval_loss"
+report_to: "wandb"
+seed: 42
+dataloader_num_workers: 4
+remove_unused_columns: false

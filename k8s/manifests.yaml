@@ -1,0 +1,136 @@
+# k8s/service.yaml — ClusterIP + optional LoadBalancer
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: legal-slm-service
+  namespace: ai-inference
+  labels:
+    app: legal-slm
+spec:
+  selector:
+    app: legal-slm
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+  type: ClusterIP           # Use LoadBalancer for direct external access
+                            # or keep ClusterIP + Ingress (recommended)
+---
+# Ingress (nginx) — exposes /api/legal/* to the internet
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: legal-slm-ingress
+  namespace: ai-inference
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.yourcompany.com
+      secretName: legal-slm-tls
+  rules:
+    - host: api.yourcompany.com
+      http:
+        paths:
+          - path: /api/legal
+            pathType: Prefix
+            backend:
+              service:
+                name: legal-slm-service
+                port:
+                  number: 80
+---
+# k8s/hpa.yaml — Horizontal Pod Autoscaler
+# Scales pods 2–8 based on GPU utilisation (custom metric via DCGM exporter)
+# and request queue depth.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: legal-slm-hpa
+  namespace: ai-inference
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: legal-slm-server
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: slm_requests_total   # Prometheus custom metric
+        target:
+          type: AverageValue
+          averageValue: "50"         # 50 req/s per pod before scaling
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300   # Wait 5 min before scale-down
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+---
+# k8s/pvc.yaml — Persistent Volume Claim for model weights cache
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-cache-pvc
+  namespace: ai-inference
+spec:
+  accessModes:
+    - ReadWriteMany               # Shared across pods (requires NFS/CephFS/EFS)
+  resources:
+    requests:
+      storage: 30Gi               # Mistral-7B fp16 ≈ 14 GB + overhead
+  storageClassName: efs-sc        # Replace with your StorageClass (GKE: standard-rwx)
+---
+# k8s/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: legal-slm-config
+  namespace: ai-inference
+data:
+  MODEL_ID: "your-username/mistral-7b-legal-review"
+  MAX_TOKENS: "1024"
+  TEMPERATURE: "0.1"
+  TENSOR_PARALLEL_SIZE: "1"
+---
+# k8s/secret.yaml — NEVER commit real secrets. Use Sealed Secrets or Vault.
+# Generate: kubectl create secret generic legal-slm-secrets \
+#             --from-literal=HF_TOKEN=hf_xxxx -n ai-inference
+apiVersion: v1
+kind: Secret
+metadata:
+  name: legal-slm-secrets
+  namespace: ai-inference
+type: Opaque
+stringData:
+  HF_TOKEN: "REPLACE_WITH_YOUR_HF_TOKEN"   # hf_xxxx...
+---
+# k8s/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-inference
+  labels:
+    name: ai-inference

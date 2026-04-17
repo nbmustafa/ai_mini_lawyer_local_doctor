@@ -1,0 +1,7 @@
+chromadb==0.5.23
+sentence-transformers==3.4.1
+ollama==0.4.7
+gradio==5.20.0
+PyYAML==6.0.2
+pymupdf==1.25.1
+tqdm==4.67.1
