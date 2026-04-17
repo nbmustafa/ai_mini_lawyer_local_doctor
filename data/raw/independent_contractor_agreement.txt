@@ -1,0 +1,19 @@
+INDEPENDENT CONTRACTOR AGREEMENT
+
+This Independent Contractor Agreement (the "Agreement") is entered into as of [Date], by and between:
+
+CLIENT: [Client Name], [Address]
+CONTRACTOR: [Contractor Name], [Address]
+
+1. SERVICES: Contractor agrees to perform [Description of Services].
+2. COMPENSATION: Client shall pay Contractor $[Amount] for the Services.
+3. STATUS: Contractor is an independent contractor, not an employee.
+4. INTELLECTUAL PROPERTY: All work product remains the property of the Client.
+5. CONFIDENTIALITY: Contractor shall keep all Client information private.
+6. TERMINATION: Either party may terminate with [Number] days' notice.
+7. GOVERNING LAW: This Agreement is governed by the laws of [State].
+
+SIGNED:
+
+Client: ____________________ Date: __________
+Contractor: ________________ Date: __________
